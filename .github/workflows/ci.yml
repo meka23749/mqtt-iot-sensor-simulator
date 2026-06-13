@@ -1,0 +1,77 @@
+﻿name: CI — IIoT Sensor Simulator
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mosquitto:
+        image: eclipse-mosquitto:2.0
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_pub -h localhost -t health -m ok"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start FastAPI server
+        run: |
+          uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          sleep 3
+
+      - name: Run MQTT tests
+        run: |
+          pytest tests/test_mqtt.py -v
+
+      - name: Run API tests
+        run: |
+          pytest tests/test_api_schemathesis.py -v
+
+      - name: Run Schemathesis fuzzing
+        run: |
+          schemathesis run http://localhost:8000/openapi.json \
+            --checks all \
+            --hypothesis-max-examples 50
+
+  lint:
+    name: Lint Python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Run flake8
+        run: flake8 . --max-line-length=100 --exclude=.git,__pycache__
