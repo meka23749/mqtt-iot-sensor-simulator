@@ -8,9 +8,9 @@ import schemathesis
 import requests
 
 
-schema = schemathesis.from_uri("http://localhost:8000/openapi.json")
-
 BASE_URL = "http://localhost:8000"
+
+schema = schemathesis.openapi.from_url("http://localhost:8000/openapi.json")
 
 
 @schema.parametrize()
