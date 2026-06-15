@@ -1,4 +1,4 @@
-﻿name: CI -- IIoT Sensor Simulator
+name: CI -- IIoT Sensor Simulator
 
 on:
   push:
@@ -73,4 +73,4 @@ jobs:
         run: |
           python -m schemathesis.cli run http://localhost:8000/openapi.json \
             --checks all \
-            --hypothesis-max-examples 30
+            --max-examples 30
