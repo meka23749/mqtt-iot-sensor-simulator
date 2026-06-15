@@ -10,25 +10,25 @@ import random
 import logging
 from datetime import datetime
 from dataclasses import dataclass, asdict
-from typing import Optional
 import paho.mqtt.client as mqtt
 
-# ===== Logging =====
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# ===== Sensor Data =====
+
 @dataclass
 class SensorReading:
     sensor_id: str
     timestamp: str
-    temperature: float   # Celsius
-    humidity: float      # Percent
-    pressure: float      # hPa
-    status: str          # online / offline / warning
+    temperature: float
+    humidity: float
+    pressure: float
+    status: str
+
 
 def generate_reading(sensor_id: str) -> SensorReading:
     """Generate realistic sensor data with slight variations"""
@@ -41,17 +41,18 @@ def generate_reading(sensor_id: str) -> SensorReading:
         status="online"
     )
 
-# ===== MQTT Callbacks =====
+
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         logger.info("Connected to MQTT Broker")
     else:
         logger.error(f"Connection failed with code {rc}")
 
+
 def on_publish(client, userdata, mid):
     logger.debug(f"Message {mid} published")
 
-# ===== Publisher =====
+
 class SensorPublisher:
     def __init__(
         self,
@@ -78,12 +79,11 @@ class SensorPublisher:
     def publish_reading(self, reading: SensorReading):
         base_topic = f"sensors/{reading.sensor_id}"
 
-        # Publish individual measurements
         topics = {
             f"{base_topic}/temperature": reading.temperature,
-            f"{base_topic}/humidity":    reading.humidity,
-            f"{base_topic}/pressure":    reading.pressure,
-            f"{base_topic}/status":      reading.status,
+            f"{base_topic}/humidity": reading.humidity,
+            f"{base_topic}/pressure": reading.pressure,
+            f"{base_topic}/status": reading.status,
         }
 
         for topic, value in topics.items():
@@ -92,10 +92,9 @@ class SensorPublisher:
                 "timestamp": reading.timestamp,
                 "sensor_id": reading.sensor_id
             })
-            result = self.client.publish(topic, payload, qos=self.qos)
-            logger.info(f"Published → {topic} | value={value} | QoS={self.qos}")
+            self.client.publish(topic, payload, qos=self.qos)
+            logger.info(f"Published -> {topic} | value={value} | QoS={self.qos}")
 
-        # Publish full reading
         self.client.publish(
             f"{base_topic}/full",
             json.dumps(asdict(reading)),
@@ -104,7 +103,10 @@ class SensorPublisher:
 
     def run(self):
         self.connect()
-        logger.info(f"Simulating {len(self.sensors)} sensors | interval={self.interval}s | QoS={self.qos}")
+        logger.info(
+            f"Simulating {len(self.sensors)} sensors"
+            f" | interval={self.interval}s | QoS={self.qos}"
+        )
 
         try:
             while True:
@@ -116,6 +118,7 @@ class SensorPublisher:
             logger.info("Simulator stopped")
             self.client.loop_stop()
             self.client.disconnect()
+
 
 if __name__ == "__main__":
     publisher = SensorPublisher(
