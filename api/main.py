@@ -13,8 +13,10 @@ import paho.mqtt.client as mqtt
 import os
 import logging
 
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="IIoT Sensor API",
@@ -25,6 +27,7 @@ app = FastAPI(
 
 sensor_store: Dict[str, dict] = {}
 
+
 class SensorReading(BaseModel):
     sensor_id: str
     timestamp: str
@@ -33,18 +36,22 @@ class SensorReading(BaseModel):
     pressure: float
     status: str
 
+
 class SensorInfo(BaseModel):
     sensor_id: str
     last_seen: Optional[str] = None
     status: str = "unknown"
+
 
 class HealthResponse(BaseModel):
     status: str
     timestamp: str
     sensors_online: int
 
+
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
-MQTT_PORT   = int(os.getenv("MQTT_PORT", 1883))
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
@@ -53,6 +60,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
         logger.info("Subscribed to sensors/#")
     else:
         logger.error(f"MQTT connection failed: {reason_code}")
+
 
 def on_message(client, userdata, msg):
     try:
@@ -84,6 +92,7 @@ def on_message(client, userdata, msg):
     except Exception as e:
         logger.error(f"MQTT message error: {e}")
 
+
 def start_mqtt():
     logger.info("MQTT thread starting...")
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="sensor-api-subscriber")
@@ -96,11 +105,14 @@ def start_mqtt():
     except Exception as e:
         logger.error(f"MQTT connection error: {e}")
 
+
 mqtt_thread = threading.Thread(target=start_mqtt, daemon=True)
 mqtt_thread.start()
 
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 def health():
+    """Health check endpoint"""
     online = sum(1 for s in sensor_store.values() if s.get("status") == "online")
     return HealthResponse(
         status="ok",
@@ -108,8 +120,10 @@ def health():
         sensors_online=online
     )
 
+
 @app.get("/sensors", response_model=List[SensorInfo], tags=["Sensors"])
 def list_sensors():
+    """List all known sensors"""
     return [
         SensorInfo(
             sensor_id=s["sensor_id"],
@@ -119,8 +133,15 @@ def list_sensors():
         for s in sensor_store.values()
     ]
 
-@app.get("/sensors/{sensor_id}", response_model=SensorReading, tags=["Sensors"], responses={404: {"description": "Sensor not found"}})
+
+@app.get(
+    "/sensors/{sensor_id}",
+    response_model=SensorReading,
+    tags=["Sensors"],
+    responses={404: {"description": "Sensor not found"}}
+)
 def get_sensor(sensor_id: str):
+    """Get full reading for a specific sensor"""
     if sensor_id not in sensor_store:
         raise HTTPException(status_code=404, detail=f"Sensor '{sensor_id}' not found")
     s = sensor_store[sensor_id]
@@ -133,12 +154,17 @@ def get_sensor(sensor_id: str):
         status=s.get("status", "unknown")
     )
 
-@app.get("/sensors/{sensor_id}/measurements", tags=["Sensors"], responses={404: {"description": "Sensor not found"}})
+
+@app.get(
+    "/sensors/{sensor_id}/measurements",
+    tags=["Sensors"],
+    responses={404: {"description": "Sensor not found"}}
+)
 def get_measurements(sensor_id: str):
+    """Get latest individual measurements for a sensor"""
     if sensor_id not in sensor_store:
         raise HTTPException(status_code=404, detail=f"Sensor '{sensor_id}' not found")
     return {
         "sensor_id": sensor_id,
         "measurements": sensor_store[sensor_id].get("measurements", {})
     }
-
