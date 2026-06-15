@@ -45,16 +45,18 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Start Mosquitto broker
+      - name: Install and start Mosquitto
         run: |
-          sudo apt-get install -y mosquitto
+          sudo apt-get update -q
+          sudo apt-get install -y mosquitto mosquitto-clients
+          sudo mkdir -p /etc/mosquitto/conf.d
           echo "listener 1883" | sudo tee /etc/mosquitto/conf.d/local.conf
           echo "allow_anonymous true" | sudo tee -a /etc/mosquitto/conf.d/local.conf
-          sudo systemctl start mosquitto
+          sudo mosquitto -c /etc/mosquitto/mosquitto.conf -d
           sleep 2
 
       - name: Verify Mosquitto is running
-        run: mosquitto_pub -h localhost -t test -m "ok"
+        run: mosquitto_pub -h localhost -t test -m "ok" -q 1
 
       - name: Start FastAPI server
         run: |
