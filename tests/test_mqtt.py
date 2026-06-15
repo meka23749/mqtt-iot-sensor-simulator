@@ -6,24 +6,27 @@ Author: Steve Meka
 
 import json
 import time
-import pytest
 import paho.mqtt.client as mqtt
 
+
 BROKER = "localhost"
-PORT   = 1883
+PORT = 1883
 TIMEOUT = 5
 
-# ===== Helper =====
+
 class MQTTTestClient:
     def __init__(self):
         self.received_messages = []
         self.connected = False
-        self.client = mqtt.Client(client_id="test-client")
+        self.client = mqtt.Client(
+            mqtt.CallbackAPIVersion.VERSION2,
+            client_id="test-client"
+        )
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
 
-    def _on_connect(self, client, userdata, flags, rc):
-        self.connected = (rc == 0)
+    def _on_connect(self, client, userdata, flags, reason_code, properties=None):
+        self.connected = (reason_code == 0)
 
     def _on_message(self, client, userdata, msg):
         self.received_messages.append({
@@ -48,13 +51,14 @@ class MQTTTestClient:
         self.client.loop_stop()
         self.client.disconnect()
 
-# ===== Tests =====
+
 def test_mqtt_broker_connection():
     """Verify connection to MQTT broker"""
     client = MQTTTestClient()
     connected = client.connect()
     assert connected, "Failed to connect to MQTT broker"
     client.disconnect()
+
 
 def test_mqtt_publish_subscribe_qos1():
     """Verify publish/subscribe flow with QoS 1"""
@@ -63,7 +67,11 @@ def test_mqtt_publish_subscribe_qos1():
     client.subscribe("test/sensor-001/temperature", qos=1)
     time.sleep(0.5)
 
-    payload = {"value": 22.5, "timestamp": "2026-01-01T00:00:00", "sensor_id": "sensor-001"}
+    payload = {
+        "value": 22.5,
+        "timestamp": "2026-01-01T00:00:00",
+        "sensor_id": "sensor-001"
+    }
     client.publish("test/sensor-001/temperature", payload, qos=1)
     time.sleep(1)
 
@@ -74,6 +82,7 @@ def test_mqtt_publish_subscribe_qos1():
     assert msg["qos"] == 1
     client.disconnect()
 
+
 def test_mqtt_topic_structure():
     """Verify correct topic structure sensors/{id}/{measurement}"""
     client = MQTTTestClient()
@@ -82,9 +91,21 @@ def test_mqtt_topic_structure():
     time.sleep(0.5)
 
     measurements = {
-        "sensors/sensor-001/temperature": {"value": 23.1, "timestamp": "2026-01-01T00:00:00", "sensor_id": "sensor-001"},
-        "sensors/sensor-001/humidity":    {"value": 55.0, "timestamp": "2026-01-01T00:00:00", "sensor_id": "sensor-001"},
-        "sensors/sensor-001/pressure":    {"value": 1013.2, "timestamp": "2026-01-01T00:00:00", "sensor_id": "sensor-001"},
+        "sensors/sensor-001/temperature": {
+            "value": 23.1,
+            "timestamp": "2026-01-01T00:00:00",
+            "sensor_id": "sensor-001"
+        },
+        "sensors/sensor-001/humidity": {
+            "value": 55.0,
+            "timestamp": "2026-01-01T00:00:00",
+            "sensor_id": "sensor-001"
+        },
+        "sensors/sensor-001/pressure": {
+            "value": 1013.2,
+            "timestamp": "2026-01-01T00:00:00",
+            "sensor_id": "sensor-001"
+        },
     }
 
     for topic, payload in measurements.items():
@@ -98,6 +119,7 @@ def test_mqtt_topic_structure():
     assert "sensors/sensor-001/pressure" in topics_received
     client.disconnect()
 
+
 def test_mqtt_qos_levels():
     """Verify all QoS levels work correctly"""
     client = MQTTTestClient()
@@ -106,12 +128,17 @@ def test_mqtt_qos_levels():
     for qos in [0, 1, 2]:
         client.subscribe(f"test/qos{qos}", qos=qos)
         time.sleep(0.3)
-        payload = {"value": qos, "timestamp": "2026-01-01T00:00:00", "sensor_id": f"qos-test-{qos}"}
+        payload = {
+            "value": qos,
+            "timestamp": "2026-01-01T00:00:00",
+            "sensor_id": f"qos-test-{qos}"
+        }
         client.publish(f"test/qos{qos}", payload, qos=qos)
 
     time.sleep(1)
     assert len(client.received_messages) >= 3
     client.disconnect()
+
 
 def test_mqtt_payload_structure():
     """Verify payload contains required fields"""
