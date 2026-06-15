@@ -8,7 +8,7 @@ pydantic==2.7.1
 
 # Testing
 pytest==8.2.0
-schemathesis==3.27.0
+schemathesis==4.21.6
 requests==2.31.0
 
 # Linting
